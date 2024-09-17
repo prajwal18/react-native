@@ -7,6 +7,7 @@ import {
   CameraView,
 } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
+import DownloadOptions from "./DownloadOptions";
 
 // Define types for the state
 interface ImageScannerState {
@@ -97,7 +98,12 @@ export default function ImageScanner() {
         <Button title="Take Picture" onPress={takePicture} />
         <Button title="Pick Image from Gallery" onPress={pickImage} />
       </View>
-      {image && <Image source={{ uri: image }} style={styles.image} />}
+      {image && (
+        <>
+          <Image source={{ uri: image }} style={styles.image} />
+          <DownloadOptions base64Img={image} />
+        </>
+      )}
     </View>
   );
 }
