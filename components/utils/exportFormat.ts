@@ -1,8 +1,3 @@
-import { Alert } from "react-native";
-import * as FileSystem from "expo-file-system";
-import * as Sharing from "expo-sharing";
-import { PDFDocument } from "pdf-lib";
-
 function generateRandomString(length: number) {
   const characters =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -16,74 +11,71 @@ const saveAsPDF = async (base64String: string) => {
   const fullFileName = `${fileName}.pdf`;
 
   try {
-    // Create a new PDFDocument
-    const pdfDoc = await PDFDocument.create();
+    // Create HTML content
+    const htmlContent = `
+      <html>
+        <body>
+          <img src="data:image/png;base64,${base64String}" style="width:100%; height:auto;" />
+        </body>
+      </html>
+    `;
 
-    // Add a page to the PDF
-    const page = pdfDoc.addPage([600, 800]);
-    const { width, height } = page.getSize();
+    // Create a Blob and a URL for the PDF
+    const blob = new Blob([htmlContent], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
 
-    // Embed the base64 image into the PDF
-    const imgBytes = await fetch(`data:image/png;base64,${base64String}`).then(
-      (res) => res.arrayBuffer()
-    );
-    const image = await pdfDoc.embedPng(imgBytes);
-
-    // Get the dimensions of the image
-    const { width: imgWidth, height: imgHeight } = image;
-
-    // Draw the image on the PDF page
-    page.drawImage(image, {
-      x: 0,
-      y: height - imgHeight,
-      width: imgWidth,
-      height: imgHeight,
-    });
-
-    // Serialize the PDFDocument to bytes
-    const pdfBytes = await pdfDoc.save();
-
-    // Write the PDF bytes to a file
-    const fileUri = FileSystem.documentDirectory + "image.pdf";
-    await FileSystem.writeAsStringAsync(fileUri, fullFileName, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-
-    Alert.alert("Success", `PDF saved to: ${fileUri}`);
+    // Create a link and trigger download
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fullFileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   } catch (error) {
     console.error(error);
-    Alert.alert("Error", "Failed to create PDF");
+    alert("Error: Failed to create PDF");
   }
 };
 
 const saveAsPng = async (base64String: string) => {
   const fileName = generateRandomString(8);
   const fullFileName = `${fileName}.png`;
+
   try {
-    // Define the file URI
-    const fileUri = FileSystem.documentDirectory + fullFileName;
+    // Ensure the base64 string does not include the data URL prefix
+    const base64WithoutPrefix = base64String.split(",")[1]; // Remove 'data:image/png;base64,' if included
+    const byteString = atob(base64WithoutPrefix);
 
-    // Write the base64 string to the file
-    await FileSystem.writeAsStringAsync(fileUri, base64String, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-
-    // Check if sharing is available
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(fileUri);
-    } else {
-      Alert.alert("Error", "Sharing is not available on this device.");
+    const ab = new Uint8Array(byteString.length);
+    for (let i = 0; i < byteString.length; i++) {
+      ab[i] = byteString.charCodeAt(i);
     }
+
+    const blob = new Blob([ab], { type: "image/png" });
+    const url = URL.createObjectURL(blob);
+
+    // Create a link and trigger download
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fullFileName;
+    document.body.appendChild(link);
+    link.click();
+
+    // Clean up the DOM and revoke the object URL
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    alert("Success! Image saved as: " + fullFileName);
   } catch (error) {
     console.error(error);
-    Alert.alert("Error", "Failed to convert and download the image.");
+    alert("Error: Failed to convert and download the image.");
   }
 };
 
 const saveAs = (base64img: string, format: string) => {
-  if (format == "png") {
+  if (format === "png") {
     saveAsPng(base64img);
-  } else if (format == "pdf") {
+  } else if (format === "pdf") {
     saveAsPDF(base64img);
   }
 };
